@@ -1,0 +1,78 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Create resource group
+      azure_rm_resourcegroup:
+        name: Az-Demo-RG
+        location: southeastasia
+        
+    - name: Create virtual network
+      azure_rm_virtualnetwork:
+       resource_group: Az-Demo-RG
+       name: DemoVnet
+       address_prefixes: "172.22.0.0/20"
+       
+    - name: Add subnet
+      azure_rm_subnet:
+       resource_group: Az-Demo-RG
+       name: DemoSubnet
+       address_prefix: "172.22.0.0/24"
+       virtual_network: DemoVnet
+       
+    - name: Create public IP address
+      azure_rm_publicipaddress:
+       resource_group: Az-Demo-RG
+       allocation_method: Static
+       name: DemoPublicIP
+       
+    - name: Create Network Security Group that allows SSH
+      azure_rm_securitygroup:
+       resource_group: Az-Demo-RG
+       name: DemoNetworkSecurityGroup
+       rules:
+        - name: SSH
+          protocol: Tcp
+          destination_port_range: 22
+          access: Allow
+          priority: 1001
+          direction: Inbound        
+        - name: Tomcat
+          protocol: Tcp
+          destination_port_range: 8080
+          access: Allow
+          priority: 1003
+          direction: Inbound
+        - name: FTPPort
+          protocol: Tcp
+          destination_port_range: 21
+          access: Allow
+          priority: 1002
+          direction: Inbound   
+          
+    - name: Create virtual network inteface card
+      azure_rm_networkinterface:
+       resource_group: Az-Demo-RG
+       name: DemoNIC
+       virtual_network: DemoVnet
+       subnet: DemoSubnet
+       public_ip_name: DemoPublicIP
+       security_group: DemoNetworkSecurityGroup
+       
+    - name: Create VM
+      azure_rm_virtualmachine:
+        resource_group: Az-Demo-RG
+        name: Az-DemoVM
+        vm_size: Standard_B2s
+        admin_username: naddyuser
+        admin_password: Pass@12345678
+        #ssh_password_enabled: false
+        #ssh_public_keys:
+        #  - path: /home/azureuser/.ssh/authorized_keys
+        #    key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtFjzu0qaa1dJOp0aK5bH1Dej8hDcuS8uf6nfj4Po2bnRlN297z4wVzvDYTpfoVL+fxJQGibuXA0QF5fdLWnHLYHKCgo7n50C65pqiPGmSor6Kj5BAsWjHZhE8zlLG1CAR8mnss/Cuqj0EmMhPd5uUCIraR7AYf+mvyP1V97FWiU8TZxO7WxVvVbIQrnXjKtXLWpVNzvrz1wXbsTvspmvpVLPZwi/iv58LZRd+qVXlJcb4Xf4jhn/g6hKWJaYYI4znqh7nluUNhjF11FsThqRC7OJ8bmVWqZ1lWe2NM3vKX2dJlsHu5+2bdL6Ka1b+sn4HqMJk7JFAWVSgDu83vm61 root@ansible-linux-vm"
+        network_interfaces: DemoNIC
+        image:
+          offer: UbuntuServer
+          publisher: Canonical
+          sku: '18.04-LTS'
+          version: latest
